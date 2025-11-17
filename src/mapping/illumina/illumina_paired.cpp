@@ -1,15 +1,15 @@
-// mapper_paired.cpp - Paired-end scoring and mate rescue
-#include "mapper.h"
-#include "../io/sam_writer.h"
-#include "../io/fastq_reader.h"
-#include "../io/output_buffer.h"
+// illumina_paired.cpp - Paired-end scoring and mate rescue
+#include "illumina_mapper.h"
+#include "../../io/sam_writer.h"
+#include "../../io/fastq_reader.h"
+#include "../../io/output_buffer.h"
 #include <algorithm>
 #include <cstdlib>
 #include <set>
 
 namespace rnamapper {
 
-Mapper::PairScore Mapper::score_pair(const Alignment &a1, const Alignment &a2,
+IlluminaMapper::PairScore IlluminaMapper::score_pair(const Alignment &a1, const Alignment &a2,
                                      const ReadRecord &rec1, const ReadRecord &rec2) const {
     PairScore ps;
     ps.r1_score = a1.score;
@@ -48,7 +48,7 @@ Mapper::PairScore Mapper::score_pair(const Alignment &a1, const Alignment &a2,
     return ps;
 }
 
-Mapper::BestPair Mapper::select_best_pair(std::vector<Alignment> &H1, std::vector<Alignment> &H2,
+IlluminaMapper::BestPair IlluminaMapper::select_best_pair(std::vector<Alignment> &H1, std::vector<Alignment> &H2,
                                           const ReadRecord &rec1, const ReadRecord &rec2) const {
     BestPair result;
     result.best1 = nullptr;
@@ -78,7 +78,7 @@ Mapper::BestPair Mapper::select_best_pair(std::vector<Alignment> &H1, std::vecto
     return result;
 }
 
-bool Mapper::attempt_mate_rescue(std::vector<Alignment> &H1, Alignment *&best1,
+bool IlluminaMapper::attempt_mate_rescue(std::vector<Alignment> &H1, Alignment *&best1,
                                  std::vector<Alignment> &H2, Alignment *&best2,
                                  const ReadRecord &rec1, const ReadRecord &rec2) {
     if (!best1 || !best2) return false;
@@ -153,7 +153,7 @@ bool Mapper::attempt_mate_rescue(std::vector<Alignment> &H1, Alignment *&best1,
     return false;
 }
 
-void Mapper::map_paired(const std::string &r1, const std::string &r2,
+void IlluminaMapper::map_paired(const std::string &r1, const std::string &r2,
                        const std::string &out_path, uint64_t max_pairs, bool do_rescue) {
     // Structure for tracking ambiguous pairs that need dense remapping
     struct AmbiguousPair {

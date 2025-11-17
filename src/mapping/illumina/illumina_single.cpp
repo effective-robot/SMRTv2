@@ -1,10 +1,10 @@
-// mapper_single.cpp - Single-end read mapping
-#include "mapper.h"
+// illumina_single.cpp - Single-end read mapping
+#include "illumina_mapper.h"
 #include <algorithm>
 
 namespace rnamapper {
 
-std::vector<Alignment> Mapper::map_read_single(const std::string &qname, const std::string &seq) {
+std::vector<Alignment> IlluminaMapper::map_read_single(const std::string &qname, const std::string &seq) {
     ST.total_reads++;
     std::vector<Alignment> hits;
     const int L = (int)seq.size();

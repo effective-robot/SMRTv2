@@ -1,15 +1,15 @@
-// mapper_genomic.cpp - Transcript to genomic coordinate projection
-#include "mapper.h"
+// illumina_genomic.cpp - Transcript to genomic coordinate projection
+#include "illumina_mapper.h"
 #include <algorithm>
 
 namespace rnamapper {
 
-std::string Mapper::strip_isoform(const std::string &s) {
+std::string IlluminaMapper::strip_isoform(const std::string &s) {
     auto d = s.find('.');
     return d == std::string::npos ? s : s.substr(0, d);
 }
 
-bool Mapper::tid_compatible_same_gene(uint32_t a, uint32_t b) const {
+bool IlluminaMapper::tid_compatible_same_gene(uint32_t a, uint32_t b) const {
     if (a == b) return true;
     bool aj = IX.is_jx_tid(a), bj = IX.is_jx_tid(b);
     if (!aj && !bj) {
@@ -32,7 +32,7 @@ bool Mapper::tid_compatible_same_gene(uint32_t a, uint32_t b) const {
     return J1.gene_id == J2.gene_id;
 }
 
-GenomicPos Mapper::transcript_to_genomic(uint32_t tid, int tx_pos, int read_len) const {
+GenomicPos IlluminaMapper::transcript_to_genomic(uint32_t tid, int tx_pos, int read_len) const {
     GenomicPos gp{"", 0, '+', "", 0, false};
     if (read_len <= 0) return gp;
 

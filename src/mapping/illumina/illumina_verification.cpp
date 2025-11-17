@@ -1,9 +1,9 @@
-// mapper_verification.cpp - Alignment verification
-#include "mapper.h"
+// illumina_verification.cpp - Alignment verification
+#include "illumina_mapper.h"
 
 namespace rnamapper {
 
-std::optional<Alignment> Mapper::verify_one(const std::string &read,
+std::optional<Alignment> IlluminaMapper::verify_one(const std::string &read,
                                             const std::vector<uint8_t> &read2b,
                                             const Cand &c,
                                             bool strand_is_rev,
@@ -46,7 +46,7 @@ std::optional<Alignment> Mapper::verify_one(const std::string &read,
     }
 }
 
-int Mapper::choose_verify_budget(const std::vector<Cand> &C, uint16_t best_votes, uint16_t best_runner) const {
+int IlluminaMapper::choose_verify_budget(const std::vector<Cand> &C, uint16_t best_votes, uint16_t best_runner) const {
     if (C.empty()) return 0;
     int topk = verify_topk;
     if (best_votes >= (uint16_t)min_votes && (int)best_votes - (int)best_runner >= lead_margin) {
@@ -55,7 +55,7 @@ int Mapper::choose_verify_budget(const std::vector<Cand> &C, uint16_t best_votes
     return std::min<int>(topk, (int)C.size());
 }
 
-bool Mapper::forward_is_clear(uint16_t best_votes, uint16_t best_runner) const {
+bool IlluminaMapper::forward_is_clear(uint16_t best_votes, uint16_t best_runner) const {
     return (best_votes >= (uint16_t)min_votes) && ((int)best_votes - (int)best_runner) >= (lead_margin + 1);
 }
 

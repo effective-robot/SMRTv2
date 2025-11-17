@@ -1,11 +1,11 @@
-// mapper_mapq.cpp - MAPQ calculation
-#include "mapper.h"
+// illumina_mapq.cpp - MAPQ calculation
+#include "illumina_mapper.h"
 #include <cmath>
 #include <algorithm>
 
 namespace rnamapper {
 
-uint8_t Mapper::calculate_mapq(const Alignment *best, const std::vector<Alignment> &all_hits, int read_len) const {
+uint8_t IlluminaMapper::calculate_mapq(const Alignment *best, const std::vector<Alignment> &all_hits, int read_len) const {
     if (!best) return 0;
 
     // Step 1: Base MAPQ from alignment quality

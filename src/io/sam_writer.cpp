@@ -1,7 +1,7 @@
 // sam_writer.cpp - SAM format output implementation
 #include "sam_writer.h"
 #include "../index/index.h"
-#include "../mapping/mapper.h"
+#include "../mapping/mapper_base.h"
 #include "../core/dna_utils.h"
 #include <unordered_map>
 #include <algorithm>
@@ -9,7 +9,7 @@
 
 namespace rnamapper {
 
-SAMWriter::SAMWriter(const IndexVX &ix, const Mapper &mp, bool nm_md)
+SAMWriter::SAMWriter(const IndexVX &ix, const MapperBase &mp, bool nm_md)
     : index(ix), mapper(mp), output_nm_md(nm_md) {}
 
 std::string SAMWriter::normalize_qname(const std::string &s) {
@@ -148,7 +148,7 @@ void SAMWriter::write_record(OutputBuffer &buf, const ReadRecord &rec, const Ali
         if (fr_orientation) {
             int ins = (int)pos + read_len - (int)mpos;
             if (ins < 0) ins = -ins;
-            if (ins >= mapper.min_ins && ins <= mapper.max_ins) {
+            if (ins >= mapper.get_min_ins() && ins <= mapper.get_max_ins()) {
                 proper_pair = true;
             }
         }

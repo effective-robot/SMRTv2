@@ -1,7 +1,7 @@
 // main.cpp - Entry point for RNA-seq mapper
 #include "core/types.h"
 #include "index/index.h"
-#include "mapping/mapper.h"
+#include "mapping/illumina/illumina_mapper.h"
 #include <cstring>
 #include <string>
 #include <cstdio>
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     IX.load(idx_path);
 
     FailureStats ST;
-    Mapper mp(IX, ST);
+    IlluminaMapper mp(IX, ST);
     mp.min_ins = min_ins;
     mp.max_ins = max_ins;
     mp.stride = stride;

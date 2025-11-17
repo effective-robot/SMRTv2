@@ -1,12 +1,12 @@
-// mapper_single_end.cpp - Single-end read mapping loop
-#include "mapper.h"
-#include "../io/sam_writer.h"
-#include "../io/fastq_reader.h"
-#include "../io/output_buffer.h"
+// illumina_single_end.cpp - Single-end read mapping loop
+#include "illumina_mapper.h"
+#include "../../io/sam_writer.h"
+#include "../../io/fastq_reader.h"
+#include "../../io/output_buffer.h"
 
 namespace rnamapper {
 
-void Mapper::map_single_end(const std::string &reads, const std::string &out_path,
+void IlluminaMapper::map_single_end(const std::string &reads, const std::string &out_path,
                            uint64_t max_reads, bool do_rescue) {
     FastqReader fq(reads);
     OutputBuffer outbuf(out_path);

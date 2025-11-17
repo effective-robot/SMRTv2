@@ -1,11 +1,11 @@
-// mapper.cpp - Mapper implementation (part 1: initialization and seed generation)
-#include "mapper.h"
+// illumina_mapper.cpp - IlluminaMapper implementation (part 1: initialization and seed generation)
+#include "illumina_mapper.h"
 #include <algorithm>
 #include <sstream>
 
 namespace rnamapper {
 
-Mapper::HH4::HH4() {
+IlluminaMapper::HH4::HH4() {
     gen = 0;
     for (int i = 0; i < 4; i++) {
         off_q[i] = INT32_MIN;
@@ -14,7 +14,7 @@ Mapper::HH4::HH4() {
     }
 }
 
-Mapper::Mapper(const IndexVX &ix, FailureStats &st) : IX(ix), ST(st) {
+IlluminaMapper::IlluminaMapper(const IndexVX &ix, FailureStats &st) : MapperBase(ix, st) {
     per_tid.resize(IX.n_tx + IX.n_jx);
     hh.resize(IX.n_tx + IX.n_jx);
     hh_touched.reserve(512);
@@ -23,7 +23,7 @@ Mapper::Mapper(const IndexVX &ix, FailureStats &st) : IX(ix), ST(st) {
     tid_list.reserve(256);
 }
 
-void Mapper::next_read_epoch() {
+void IlluminaMapper::next_read_epoch() {
     per_tid_gen++;
     if (per_tid_gen == 0) {
         per_tid_gen = 1;
@@ -44,7 +44,7 @@ void Mapper::next_read_epoch() {
     hh_touched.clear();
 }
 
-uint16_t Mapper::bump_hh(uint32_t tid, int32_t off_q, uint8_t flags) {
+uint16_t IlluminaMapper::bump_hh(uint32_t tid, int32_t off_q, uint8_t flags) {
     HH4 &H = hh[tid];
     if (H.gen != per_tid_gen) {
         H.gen = per_tid_gen;
@@ -82,7 +82,7 @@ uint16_t Mapper::bump_hh(uint32_t tid, int32_t off_q, uint8_t flags) {
     return 1;
 }
 
-void Mapper::on_vote(uint32_t tid, int32_t off_q, uint16_t cnt) {
+void IlluminaMapper::on_vote(uint32_t tid, int32_t off_q, uint16_t cnt) {
     auto &t = per_tid[tid];
     if (t.gen != per_tid_gen) {
         t.gen = per_tid_gen;
@@ -101,7 +101,7 @@ void Mapper::on_vote(uint32_t tid, int32_t off_q, uint16_t cnt) {
     }
 }
 
-std::vector<Mapper::Seed> Mapper::make_seeds(const std::string &seq) const {
+std::vector<IlluminaMapper::Seed> IlluminaMapper::make_seeds(const std::string &seq) const {
     const int L = (int)seq.size(), K = (int)IX.k;
     std::vector<Seed> seeds;
     if (L < K) return seeds;

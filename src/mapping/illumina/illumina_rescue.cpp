@@ -1,12 +1,12 @@
-// mapper_rescue.cpp - Rescue/reprocess logic for unmapped reads
-#include "mapper.h"
+// illumina_rescue.cpp - Rescue/reprocess logic for unmapped reads
+#include "illumina_mapper.h"
 #include <unordered_set>
 #include <sstream>
 #include <algorithm>
 
 namespace rnamapper {
 
-Mapper::ReprocessResult Mapper::attempt_reprocess_single(const std::string &qname, const std::string &seq,
+IlluminaMapper::ReprocessResult IlluminaMapper::attempt_reprocess_single(const std::string &qname, const std::string &seq,
                                                          const Alignment *orig_aln) {
     ReprocessResult out;
 
