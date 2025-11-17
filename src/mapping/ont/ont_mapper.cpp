@@ -2,6 +2,8 @@
 #include "ont_mapper.h"
 #include "../../core/dna_utils.h"
 #include <cstdio>
+#include <algorithm>
+#include <cmath>
 
 namespace rnamapper {
 
@@ -48,26 +50,193 @@ void ONTMapper::next_read_epoch() {
     // - Increment epoch generation
 }
 
-// ==================== ONT-SPECIFIC METHODS (STUBS) ====================
-
-int ONTMapper::compute_adaptive_stride(int read_len) const {
-    (void)read_len;  // Unused for now
-    // TODO Step 4: Implement adaptive stride calculation
-    // Strategy:
-    //   - read_len < 500: stride = 1-2 (dense)
-    //   - read_len < 5000: stride = 5-10 (sparse)
-    //   - read_len >= 5000: stride = 20-50 (very sparse)
-    return base_stride;  // Placeholder
-}
+// ==================== ONT-SPECIFIC METHODS ====================
 
 std::vector<ONTMapper::Seed> ONTMapper::make_seeds_ont(const std::string &seq) const {
-    (void)seq;  // Unused for now
-    // TODO Step 4: Implement ONT seeding strategy
-    // Options:
-    //   1. Sparse k-mer sampling with adaptive stride
-    //   2. Minimizer-based seeding
-    //   3. Hybrid approach
-    return {};
+    const int L = (int)seq.size();
+    const int K = (int)IX.k;  // k=31 from index
+
+    std::vector<Seed> seeds;
+    if (L < K) {
+        return seeds;  // Read too short
+    }
+
+    // Step 1: Compute adaptive stride for this read (implemented in ont_seeding.cpp)
+    int adaptive_stride = compute_adaptive_stride(L);
+
+    // Step 2: Determine if windowing is needed (ultra-long reads)
+    bool use_windowed = (L > 10000);  // Step 5 threshold
+
+    // Step 3: Generate seeds
+    if (!use_windowed) {
+        // Normal adaptive stride seeding
+        seeds = generate_seeds_simple(seq, adaptive_stride);
+    } else {
+        // Windowed seeding for ultra-long reads (Step 5)
+        seeds = generate_seeds_windowed(seq, adaptive_stride);
+    }
+
+    // Step 4: Sort seeds by DF (document frequency) for efficiency
+    std::sort(seeds.begin(), seeds.end(), [](const Seed &a, const Seed &b) {
+        if (a.common != b.common) return a.common < b.common;
+        if (a.df_bytes != b.df_bytes) return a.df_bytes < b.df_bytes;
+        return a.pos < b.pos;
+    });
+
+    // Debug logging
+    if (use_windowed) {
+        fprintf(stderr, "[ONT Seeding] Ultra-long read: %d bp, windowed mode, seeds: %zu\n",
+                L, seeds.size());
+    } else if (L > 1000) {
+        fprintf(stderr, "[ONT Seeding] Read: %d bp, stride: %d, seeds: %zu\n",
+                L, adaptive_stride, seeds.size());
+    }
+
+    return seeds;
+}
+
+std::vector<ONTMapper::Seed> ONTMapper::generate_seeds_simple(
+    const std::string &seq, int stride) const
+{
+    const int L = (int)seq.size();
+    const int K = (int)IX.k;
+    const uint64_t KMASK = (K == 32) ? 0xFFFFFFFFFFFFFFFFULL : ((1ULL << (2 * K)) - 1ULL);
+
+    std::vector<Seed> seeds;
+    seeds.reserve(std::max(0, (L - K + stride) / stride));
+
+    uint64_t roll = 0;
+    int good = 0;
+
+    auto push_seed = [&](int start, uint64_t kmer) {
+        // Canonicalize if index uses canonical k-mers
+        if (IX.uses_canonical) {
+            uint64_t rc = 0, kx = kmer;
+            for (int i = 0; i < K; i++) {
+                uint64_t base = kx & 3ULL;
+                rc = (rc << 2) | (3ULL - base);
+                kx >>= 2;
+            }
+            if (rc < kmer) kmer = rc;
+        }
+
+        // Bloom filter check
+        if (!IX.bloom_may_contain(kmer)) return;
+
+        // Index lookup
+        auto [ok, idx] = IX.find_key(kmer);
+        if (!ok) return;
+
+        // Get document frequency
+        uint32_t byte_span = IX.postings_span_bytes(idx);
+        uint32_t df_bytes = (byte_span <= 6u) ? 6u : byte_span;
+
+        seeds.push_back(Seed{kmer, start, idx, df_bytes, IX.is_common(idx)});
+    };
+
+    // Rolling hash to extract k-mers
+    for (int i = 0; i < L; i++) {
+        int b = nt2b(seq[i]);
+        if (b < 0) {
+            roll = 0;
+            good = 0;
+            continue;
+        }
+        roll = ((roll << 2) | (uint64_t)b) & KMASK;
+        if (++good >= K) {
+            int start = i - K + 1;
+            if ((start % stride) == 0) {
+                push_seed(start, roll);
+            }
+        }
+    }
+
+    return seeds;
+}
+
+std::vector<ONTMapper::Seed> ONTMapper::generate_seeds_windowed(
+    const std::string &seq, int base_stride) const
+{
+    /**
+     * Windowed seeding strategy for ultra-long reads (>10kb)
+     *
+     * Strategy:
+     * - Divide read into windows (e.g., 2kb windows every 5kb)
+     * - Sample DENSELY within first 2kb of each window
+     * - Sample SPARSELY between windows
+     *
+     * Goal: Get good coverage without excessive seed count
+     */
+
+    const int L = (int)seq.size();
+    const int K = (int)IX.k;
+    const uint64_t KMASK = (K == 32) ? 0xFFFFFFFFFFFFFFFFULL : ((1ULL << (2 * K)) - 1ULL);
+
+    const int window_size = 2000;      // Dense sampling in 2kb windows
+    const int window_stride = 5000;    // Windows every 5kb
+
+    std::vector<Seed> seeds;
+    seeds.reserve(L / 50);  // Estimate
+
+    auto should_sample = [&](int pos) -> bool {
+        int pos_in_window = pos % window_stride;
+
+        if (pos_in_window < window_size) {
+            // Dense sampling in window (use base_stride)
+            return (pos % base_stride) == 0;
+        } else {
+            // Sparse sampling between windows (3x stride)
+            return (pos % (base_stride * 3)) == 0;
+        }
+    };
+
+    auto push_seed = [&](int start, uint64_t kmer) {
+        // Canonicalize if index uses canonical k-mers
+        if (IX.uses_canonical) {
+            uint64_t rc = 0, kx = kmer;
+            for (int i = 0; i < K; i++) {
+                uint64_t base = kx & 3ULL;
+                rc = (rc << 2) | (3ULL - base);
+                kx >>= 2;
+            }
+            if (rc < kmer) kmer = rc;
+        }
+
+        // Bloom filter check
+        if (!IX.bloom_may_contain(kmer)) return;
+
+        // Index lookup
+        auto [ok, idx] = IX.find_key(kmer);
+        if (!ok) return;
+
+        // Get document frequency
+        uint32_t byte_span = IX.postings_span_bytes(idx);
+        uint32_t df_bytes = (byte_span <= 6u) ? 6u : byte_span;
+
+        seeds.push_back(Seed{kmer, start, idx, df_bytes, IX.is_common(idx)});
+    };
+
+    // Generate seeds with windowing logic
+    uint64_t roll = 0;
+    int good = 0;
+
+    for (int i = 0; i < L; i++) {
+        int b = nt2b(seq[i]);
+        if (b < 0) {
+            roll = 0;
+            good = 0;
+            continue;
+        }
+        roll = ((roll << 2) | (uint64_t)b) & KMASK;
+        if (++good >= K) {
+            int start = i - K + 1;
+            if (should_sample(start)) {
+                push_seed(start, roll);
+            }
+        }
+    }
+
+    return seeds;
 }
 
 ONTMapper::DiscoverRes ONTMapper::discover_ont(const std::string &seq) const {

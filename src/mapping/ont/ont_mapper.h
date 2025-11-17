@@ -153,10 +153,23 @@ private:
     // Error tolerance (will tune in Step 6)
     double max_error_rate = 0.15;  // 15% error tolerance (vs Illumina's 1-2%)
 
-    // TODO: Add ONT-specific data structures in Step 4:
-    // - Candidate transcript hash table
-    // - Seed storage
-    // - Alignment buffers
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Generate seeds using simple adaptive stride
+     * @param seq Read sequence
+     * @param stride Stride between k-mers
+     * @return Vector of seeds
+     */
+    std::vector<Seed> generate_seeds_simple(const std::string &seq, int stride) const;
+
+    /**
+     * Generate seeds using windowed strategy for ultra-long reads
+     * @param seq Read sequence
+     * @param base_stride Base stride value (will be modulated by windows)
+     * @return Vector of seeds
+     */
+    std::vector<Seed> generate_seeds_windowed(const std::string &seq, int base_stride) const;
 };
 
 } // namespace rnamapper
