@@ -39,6 +39,14 @@ public:
         bool common;
     };
 
+    // Candidate transcript structure (from discovery phase)
+    struct Cand {
+        uint32_t tid;       // Transcript ID
+        int32_t off_q;      // Offset quantized (position >> bin_shift)
+        uint16_t votes;     // Number of seed votes
+        uint8_t flags;      // Junction flags (if applicable)
+    };
+
     // Constructor
     explicit ONTMapper(const IndexVX &ix, FailureStats &st);
 
@@ -139,19 +147,25 @@ public:
     int get_max_ins() const override { return max_ins; }
 
 private:
+    // ==================== ALGORITHM COMPONENTS ====================
+
+    // Hamming distance aligner (reused from Illumina, extended for ONT)
+    Hamming2B ham;
+
     // ==================== ONT-SPECIFIC PARAMETERS ====================
 
     // Insert size parameters (not used for ONT, but required by interface)
     int min_ins = 100;
     int max_ins = 25000;  // Much larger than Illumina to account for long reads
 
-    // Seeding parameters (will tune in Step 4)
+    // Seeding parameters
     int min_votes = 2;      // Relaxed from Illumina's 3 (fewer seeds expected)
     int lead_margin = 1;    // Relaxed from Illumina's 2
     int base_stride = 10;   // Base stride for adaptive calculation
+    int bin_shift = 3;      // Binning shift for position quantization
 
-    // Error tolerance (will tune in Step 6)
-    double max_error_rate = 0.15;  // 15% error tolerance (vs Illumina's 1-2%)
+    // Error tolerance
+    double max_error_rate = 0.20;  // 20% error tolerance for verification (vs Illumina's 10%)
 
     // ==================== HELPER METHODS ====================
 
@@ -170,6 +184,32 @@ private:
      * @return Vector of seeds
      */
     std::vector<Seed> generate_seeds_windowed(const std::string &seq, int base_stride) const;
+
+    /**
+     * Verify candidate alignment using extended Hamming distance
+     * @param read Read sequence (forward or reverse)
+     * @param read_2bit Read in 2-bit encoding
+     * @param c Candidate from discovery
+     * @param strand_is_rev Is this the reverse strand?
+     * @return Alignment if valid, nullopt otherwise
+     */
+    std::optional<Alignment> verify_one_ont(
+        const std::string &read,
+        const std::vector<uint8_t> &read_2bit,
+        const Cand &c,
+        bool strand_is_rev) const;
+
+    /**
+     * Choose number of candidates to verify based on vote distribution
+     * @param candidates List of candidates
+     * @param best_votes Vote count of best candidate
+     * @param best_runner Vote count of second-best candidate
+     * @return Number of candidates to verify
+     */
+    int choose_verify_budget_ont(
+        const std::vector<Cand> &candidates,
+        uint16_t best_votes,
+        uint16_t best_runner) const;
 };
 
 } // namespace rnamapper
