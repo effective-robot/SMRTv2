@@ -2,3 +2,4 @@ build/
 mapper_v17_modular
 *.o
 *.d
+*.log
