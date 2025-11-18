@@ -163,6 +163,9 @@ private:
     // Error tolerance
     double max_error_rate = 0.20;  // 20% error tolerance for verification (vs Illumina's 10%)
 
+    // Output options
+    bool output_nm_md = false;  // Output NM and MD tags in SAM
+
     // ==================== DISCOVERY DATA STRUCTURES ====================
 
     /**

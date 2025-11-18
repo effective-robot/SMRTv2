@@ -10,10 +10,6 @@ namespace rnamapper {
 ONTMapper::ONTMapper(const IndexVX &ix, FailureStats &st)
     : MapperBase(ix, st), per_tid_gen(1)
 {
-    fprintf(stderr, "[ONTMapper] Initialized for ONT long-read mode\n");
-    fprintf(stderr, "[ONTMapper] Max error rate: %.1f%%, Base stride: %d\n",
-            max_error_rate * 100.0, base_stride);
-
     // Initialize discovery structures
     per_tid.resize(IX.n_tx + IX.n_jx);
     hh.resize(IX.n_tx + IX.n_jx);
@@ -21,6 +17,13 @@ ONTMapper::ONTMapper(const IndexVX &ix, FailureStats &st)
     sieve_cnt.resize(IX.n_targets, 0);
     sieve_gen.resize(IX.n_targets, 0);
     tid_list.reserve(256);
+
+    fprintf(stderr, "[ONTMapper] ==========================================\n");
+    fprintf(stderr, "[ONTMapper] ONT Long-Read Mapper Initialized\n");
+    fprintf(stderr, "[ONTMapper] Error tolerance: %.1f%%\n", max_error_rate * 100.0);
+    fprintf(stderr, "[ONTMapper] Min votes: %d, Lead margin: %d\n", min_votes, lead_margin);
+    fprintf(stderr, "[ONTMapper] Base stride: %d (adaptive)\n", base_stride);
+    fprintf(stderr, "[ONTMapper] ==========================================\n");
 }
 
 // ==================== CORE MAPPING INTERFACE (STUBS) ====================
@@ -28,14 +31,16 @@ ONTMapper::ONTMapper(const IndexVX &ix, FailureStats &st)
 void ONTMapper::map_paired(const std::string &r1, const std::string &r2,
                            const std::string &out_path, uint64_t max_pairs, bool do_rescue) {
     (void)r1; (void)r2; (void)out_path; (void)max_pairs; (void)do_rescue;
-    fprintf(stderr, "ERROR: ONTMapper::map_paired() not supported for ONT (single-molecule sequencing)\n");
-    fprintf(stderr, "       Use map_single_end() instead or remove --ont flag for Illumina paired-end mode\n");
-}
 
-void ONTMapper::map_single_end(const std::string &reads, const std::string &out_path,
-                               uint64_t max_reads, bool do_rescue) {
-    (void)reads; (void)out_path; (void)max_reads; (void)do_rescue;
-    fprintf(stderr, "ERROR: ONTMapper::map_single_end() not yet implemented (Step 9)\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "========================================================\n");
+    fprintf(stderr, "ERROR: ONT paired-end mode is not supported\n");
+    fprintf(stderr, "========================================================\n");
+    fprintf(stderr, "ONT sequencing produces single-molecule reads.\n");
+    fprintf(stderr, "Please use single-end mode:\n");
+    fprintf(stderr, "  ./mapper --ont index.bin reads.fq output.sam\n");
+    fprintf(stderr, "========================================================\n");
+    fprintf(stderr, "\n");
 }
 
 // ==================== ONT-SPECIFIC METHODS ====================
@@ -225,25 +230,6 @@ std::vector<ONTMapper::Seed> ONTMapper::generate_seeds_windowed(
     }
 
     return seeds;
-}
-
-// ==================== INHERITED INTERFACE IMPLEMENTATIONS ====================
-
-GenomicPos ONTMapper::transcript_to_genomic(uint32_t tid, int tx_pos, int read_len) const {
-    (void)tid; (void)tx_pos; (void)read_len;
-    // TODO Step 8: Implement or reuse Illumina's genomic projection
-    // For now, return invalid position
-    return {"", 0, '+', "", 0, false};
-}
-
-uint8_t ONTMapper::calculate_mapq(const Alignment *best, const std::vector<Alignment> &all_hits, int read_len) const {
-    (void)best; (void)all_hits; (void)read_len;
-    // TODO Step 8: Implement ONT-specific MAPQ calculation
-    // Consider:
-    // - Long read length
-    // - Higher error rate
-    // - Different alignment score distributions
-    return 0;  // Placeholder
 }
 
 } // namespace rnamapper
