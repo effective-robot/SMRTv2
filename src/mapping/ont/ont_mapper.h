@@ -107,20 +107,16 @@ public:
     std::vector<Seed> make_seeds_ont(const std::string &seq) const;
 
     /**
-     * Discover candidate transcripts from ONT read
-     * Will implement in Step 5
+     * Discovery result structure
      */
     struct DiscoverRes {
-        std::vector<Alignment> candidates;
-        bool had_any_seed;
+        std::vector<Cand> shortlist;
+        uint16_t best_votes = 0;
+        uint16_t best_runner = 0;
+        bool had_any_seed = false;
+        bool all_seeds_filtered = false;
     };
-    DiscoverRes discover_ont(const std::string &seq) const;
 
-    /**
-     * Verify candidate alignment for ONT read
-     * Will implement in Step 6
-     */
-    bool verify_ont(const std::string &read, Alignment &aln) const;
 
     // ==================== INHERITED INTERFACE IMPLEMENTATIONS ====================
 
@@ -167,6 +163,50 @@ private:
     // Error tolerance
     double max_error_rate = 0.20;  // 20% error tolerance for verification (vs Illumina's 10%)
 
+    // ==================== DISCOVERY DATA STRUCTURES ====================
+
+    /**
+     * Heavy hitter structure for offset tracking
+     * Tracks up to 4 most common offsets per transcript
+     */
+    struct HH4 {
+        int32_t off_q[4];    // Quantized offsets
+        uint16_t cnt[4];     // Vote counts
+        uint8_t flg[4];      // Junction flags
+        uint32_t gen;        // Generation counter
+
+        HH4() : gen(0) {
+            for (int i = 0; i < 4; i++) {
+                off_q[i] = INT32_MIN;
+                cnt[i] = 0;
+                flg[i] = 0;
+            }
+        }
+    };
+
+    /**
+     * Per-transcript best vote tracking
+     */
+    struct TBest {
+        uint16_t best;          // Best vote count
+        uint16_t second;        // Second-best vote count
+        int32_t best_off_q;     // Best offset
+        uint32_t gen;           // Generation counter
+
+        TBest() : best(0), second(0), best_off_q(INT32_MIN), gen(0) {}
+    };
+
+    // Discovery state (mutable for const methods)
+    mutable std::vector<HH4> hh;              // Heavy hitters per transcript
+    mutable std::vector<uint32_t> hh_touched; // Touched transcripts
+    mutable std::vector<TBest> per_tid;       // Best per transcript
+    mutable uint32_t per_tid_gen;             // Generation counter
+
+    // Sieve structures (for large candidate filtering)
+    mutable std::vector<uint16_t> sieve_cnt;  // Seed counts per tid
+    mutable std::vector<uint32_t> sieve_gen;  // Generation per tid
+    mutable std::vector<uint32_t> tid_list;   // Candidate list
+
     // ==================== HELPER METHODS ====================
 
     /**
@@ -184,6 +224,20 @@ private:
      * @return Vector of seeds
      */
     std::vector<Seed> generate_seeds_windowed(const std::string &seq, int base_stride) const;
+
+    /**
+     * Discovery helper methods
+     */
+    uint16_t bump_hh(uint32_t tid, int32_t off_q, uint8_t flags);
+    void on_vote(uint32_t tid, int32_t off_q, uint16_t cnt);
+
+    /**
+     * Discover candidate transcripts from ONT read
+     * @param seq Read sequence (forward or reverse)
+     * @param is_rev Is this the reverse strand?
+     * @return Discovery result with shortlist of candidates
+     */
+    DiscoverRes discover_ont(const std::string &seq, bool is_rev);
 
     /**
      * Verify candidate alignment using extended Hamming distance

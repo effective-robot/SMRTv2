@@ -8,25 +8,22 @@
 namespace rnamapper {
 
 ONTMapper::ONTMapper(const IndexVX &ix, FailureStats &st)
-    : MapperBase(ix, st)
+    : MapperBase(ix, st), per_tid_gen(1)
 {
     fprintf(stderr, "[ONTMapper] Initialized for ONT long-read mode\n");
     fprintf(stderr, "[ONTMapper] Max error rate: %.1f%%, Base stride: %d\n",
             max_error_rate * 100.0, base_stride);
-    // TODO Step 4: Initialize ONT-specific data structures
-    // - Candidate hash tables
-    // - Seed buffers
-    // - Alignment caches
+
+    // Initialize discovery structures
+    per_tid.resize(IX.n_tx + IX.n_jx);
+    hh.resize(IX.n_tx + IX.n_jx);
+    hh_touched.reserve(512);
+    sieve_cnt.resize(IX.n_targets, 0);
+    sieve_gen.resize(IX.n_targets, 0);
+    tid_list.reserve(256);
 }
 
 // ==================== CORE MAPPING INTERFACE (STUBS) ====================
-
-std::vector<Alignment> ONTMapper::map_read_single(const std::string &qname, const std::string &seq) {
-    (void)qname;  // Unused for now
-    (void)seq;    // Unused for now
-    fprintf(stderr, "ERROR: ONTMapper::map_read_single() not yet implemented (Step 7)\n");
-    return {};
-}
 
 void ONTMapper::map_paired(const std::string &r1, const std::string &r2,
                            const std::string &out_path, uint64_t max_pairs, bool do_rescue) {
@@ -39,15 +36,6 @@ void ONTMapper::map_single_end(const std::string &reads, const std::string &out_
                                uint64_t max_reads, bool do_rescue) {
     (void)reads; (void)out_path; (void)max_reads; (void)do_rescue;
     fprintf(stderr, "ERROR: ONTMapper::map_single_end() not yet implemented (Step 9)\n");
-}
-
-// ==================== EPOCH MANAGEMENT ====================
-
-void ONTMapper::next_read_epoch() {
-    // TODO Step 4: Reset per-read state
-    // - Clear candidate hash tables
-    // - Reset seed counters
-    // - Increment epoch generation
 }
 
 // ==================== ONT-SPECIFIC METHODS ====================
@@ -237,27 +225,6 @@ std::vector<ONTMapper::Seed> ONTMapper::generate_seeds_windowed(
     }
 
     return seeds;
-}
-
-ONTMapper::DiscoverRes ONTMapper::discover_ont(const std::string &seq) const {
-    (void)seq;  // Unused for now
-    // TODO Step 5: Implement ONT candidate discovery
-    // - Use sparse seeds
-    // - Relaxed voting thresholds
-    // - Handle high error rate
-    DiscoverRes res;
-    res.had_any_seed = false;
-    return res;
-}
-
-bool ONTMapper::verify_ont(const std::string &read, Alignment &aln) const {
-    (void)read;  // Unused for now
-    (void)aln;   // Unused for now
-    // TODO Step 6: Implement ONT-specific verification
-    // - Use alignment algorithm tolerant of high error rate
-    // - Compute alignment score
-    // - Set mismatch count
-    return false;
 }
 
 // ==================== INHERITED INTERFACE IMPLEMENTATIONS ====================
