@@ -1,10 +1,11 @@
-// mapper.h - Main RNA-seq mapper
+// illumina_mapper.h - Illumina paired-end RNA-seq mapper
 #pragma once
 
-#include "../core/types.h"
-#include "../core/dna_utils.h"
-#include "../index/index.h"
-#include "../alignment/hamming.h"
+#include "../mapper_base.h"
+#include "../../core/types.h"
+#include "../../core/dna_utils.h"
+#include "../../index/index.h"
+#include "../../alignment/hamming.h"
 #include <vector>
 #include <optional>
 #include <unordered_set>
@@ -13,11 +14,8 @@
 
 namespace rnamapper {
 
-class Mapper {
+class IlluminaMapper : public MapperBase {
 public:
-    // Reference to index and statistics
-    const IndexVX &IX;
-    FailureStats &ST;
 
     // Algorithm components
     Hamming2B ham;
@@ -81,10 +79,10 @@ public:
         bool all_seeds_filtered = false;
     };
 
-    explicit Mapper(const IndexVX &ix, FailureStats &st);
+    explicit IlluminaMapper(const IndexVX &ix, FailureStats &st);
 
     // Core mapping functions
-    void next_read_epoch();
+    void next_read_epoch() override;
     std::vector<Seed> make_seeds(const std::string &seq) const;
     DiscoverRes discover(const std::string &seq, bool rev);
     std::optional<Alignment> verify_one(const std::string &read,
@@ -94,14 +92,14 @@ public:
                                        double mm_frac_tx = 0.10,
                                        double mm_frac_jx = 0.05) const;
 
-    std::vector<Alignment> map_read_single(const std::string &qname, const std::string &seq);
+    std::vector<Alignment> map_read_single(const std::string &qname, const std::string &seq) override;
 
     // Paired-end mapping
     void map_paired(const std::string &r1, const std::string &r2,
-                   const std::string &out_path, uint64_t max_pairs = 0, bool do_rescue = false);
+                   const std::string &out_path, uint64_t max_pairs = 0, bool do_rescue = false) override;
 
     void map_single_end(const std::string &reads, const std::string &out_path,
-                       uint64_t max_reads = 0, bool do_rescue = false);
+                       uint64_t max_reads = 0, bool do_rescue = false) override;
 
     // Helper functions (declared inline for performance but implemented in .cpp)
     uint16_t bump_hh(uint32_t tid, int32_t off_q, uint8_t flags);
@@ -111,10 +109,14 @@ public:
     bool tid_compatible_same_gene(uint32_t a, uint32_t b) const;
 
     // Genomic projection
-    GenomicPos transcript_to_genomic(uint32_t tid, int tx_pos, int read_len) const;
+    GenomicPos transcript_to_genomic(uint32_t tid, int tx_pos, int read_len) const override;
 
     // MAPQ calculation
-    uint8_t calculate_mapq(const Alignment *best, const std::vector<Alignment> &all_hits, int read_len) const;
+    uint8_t calculate_mapq(const Alignment *best, const std::vector<Alignment> &all_hits, int read_len) const override;
+
+    // Insert size accessors
+    int get_min_ins() const override { return min_ins; }
+    int get_max_ins() const override { return max_ins; }
 
     // Pair scoring
     struct PairScore {

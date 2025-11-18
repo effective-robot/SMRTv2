@@ -29,10 +29,9 @@ protected:
     // Reference to the k-mer index (shared by all mapper implementations)
     const IndexVX& IX;
 
-    // Statistics tracking (shared by all mapper implementations)
-    FailureStats& ST;
-
 public:
+    // Statistics tracking (shared by all mapper implementations) - public for SAMWriter access
+    FailureStats& ST;
     /**
      * Constructor - Initialize mapper with index and statistics
      * @param ix Reference to the loaded k-mer index
@@ -120,6 +119,40 @@ public:
      * Default: No-op (can be overridden by derived classes if needed)
      */
     virtual void next_read_epoch() {}
+
+    // ==================== ILLUMINA-SPECIFIC INTERFACE ====================
+    // These methods are required by SAMWriter and other downstream components
+    // They may not be relevant for all mapper types (e.g., ONT)
+
+    /**
+     * Convert transcript coordinates to genomic coordinates
+     * @param tid Transcript ID
+     * @param tx_pos Position in transcript
+     * @param read_len Read length
+     * @return Genomic position with CIGAR string
+     */
+    virtual GenomicPos transcript_to_genomic(uint32_t tid, int tx_pos, int read_len) const = 0;
+
+    /**
+     * Calculate mapping quality (MAPQ) for an alignment
+     * @param best Best alignment (can be nullptr)
+     * @param all_hits All candidate alignments
+     * @param read_len Read length
+     * @return MAPQ value (0-255)
+     */
+    virtual uint8_t calculate_mapq(const Alignment* best, const std::vector<Alignment>& all_hits, int read_len) const = 0;
+
+    /**
+     * Get minimum insert size for paired-end reads
+     * @return Minimum insert size (Illumina-specific)
+     */
+    virtual int get_min_ins() const = 0;
+
+    /**
+     * Get maximum insert size for paired-end reads
+     * @return Maximum insert size (Illumina-specific)
+     */
+    virtual int get_max_ins() const = 0;
 };
 
 } // namespace rnamapper

@@ -42,6 +42,7 @@ inline int nt2b(char c) {
     case 'C': case 'c': return 1;
     case 'G': case 'g': return 2;
     case 'T': case 't': return 3;
+    case 'U': case 'u': return 3;  // RNA: Uracil → Thymine
     default: return -1;
     }
 }

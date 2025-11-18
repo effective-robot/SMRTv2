@@ -1,10 +1,10 @@
-// mapper_discovery.cpp - Discovery phase implementation
-#include "mapper.h"
+// illumina_discovery.cpp - Discovery phase implementation
+#include "illumina_mapper.h"
 #include <algorithm>
 
 namespace rnamapper {
 
-Mapper::DiscoverRes Mapper::discover(const std::string &seq, bool rev) {
+IlluminaMapper::DiscoverRes IlluminaMapper::discover(const std::string &seq, bool rev) {
     next_read_epoch();
     DiscoverRes R;
     auto seeds = make_seeds(seq);

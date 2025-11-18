@@ -8,7 +8,7 @@
 // Forward declarations
 namespace rnamapper {
 class IndexVX;
-class Mapper;
+class MapperBase;
 }
 
 namespace rnamapper {
@@ -16,7 +16,7 @@ namespace rnamapper {
 class SAMWriter {
 private:
     const IndexVX &index;
-    const Mapper &mapper;
+    const MapperBase &mapper;
     bool output_nm_md;
 
     // Helper functions
@@ -24,7 +24,7 @@ private:
     void append_nm_md_tags(std::string &line, const Alignment *aln, const ReadRecord &rec) const;
 
 public:
-    SAMWriter(const IndexVX &ix, const Mapper &mp, bool nm_md = false);
+    SAMWriter(const IndexVX &ix, const MapperBase &mp, bool nm_md = false);
 
     // Write SAM header with contigs and metadata
     void write_header(OutputBuffer &outbuf) const;

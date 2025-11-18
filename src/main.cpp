@@ -1,10 +1,12 @@
 // main.cpp - Entry point for RNA-seq mapper
 #include "core/types.h"
 #include "index/index.h"
-#include "mapping/mapper.h"
+#include "mapping/illumina/illumina_mapper.h"
+#include "mapping/ont/ont_mapper.h"
 #include <cstring>
 #include <string>
 #include <cstdio>
+#include <memory>
 
 using namespace rnamapper;
 
@@ -58,6 +60,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  --verify-topk-lo N   verify when clear\n");
         fprintf(stderr, "  --output-nm-md 1     emit NM/MD\n");
         fprintf(stderr, "  --rescue             enable rescue/reprocess tiers for unmapped reads\n");
+        fprintf(stderr, "  --ont                use ONT long-read mapper (default: Illumina short-read)\n");
         return 1;
     }
 
@@ -93,6 +96,7 @@ int main(int argc, char **argv) {
     bool prefetch = true, dedup_seeds = false, skip_rev_on_clear = true;
     bool output_nm_md = false;
     bool rescue_unmapped = false;
+    bool ont_mode = false;
 
     for (int i = opt_start; i < argc; i++) {
         if (strcmp(argv[i], "--max-pairs") == 0 && i + 1 < argc) {
@@ -138,6 +142,8 @@ int main(int argc, char **argv) {
             output_nm_md = parse_i32(argv[++i], 0) != 0;
         } else if (strcmp(argv[i], "--rescue") == 0) {
             rescue_unmapped = true;
+        } else if (strcmp(argv[i], "--ont") == 0) {
+            ont_mode = true;
         }
     }
 
@@ -145,29 +151,45 @@ int main(int argc, char **argv) {
     IX.load(idx_path);
 
     FailureStats ST;
-    Mapper mp(IX, ST);
-    mp.min_ins = min_ins;
-    mp.max_ins = max_ins;
-    mp.stride = stride;
-    mp.min_votes = min_votes;
-    mp.lead_margin = lead_margin;
-    mp.min_seeds_before_early = early_seeds;
-    mp.verify_topk = verify_topk;
-    mp.verify_topk_lo = verify_topk_lo;
-    mp.df1_bytes = df1_bytes;
-    mp.df2_bytes = df2_bytes;
-    mp.post_budget = post_budget;
-    mp.prefetch = prefetch;
-    mp.dedup_seeds = dedup_seeds;
-    mp.sieve_seeds = sieve_seeds;
-    mp.skip_rev_on_clear = skip_rev_on_clear;
-    mp.bin_shift = bin_shift;
-    mp.output_nm_md = output_nm_md;
 
-    if (!paired) {
-        mp.map_single_end(reads1, out_path, max_reads, rescue_unmapped);
+    // Create appropriate mapper based on --ont flag
+    if (ont_mode) {
+        fprintf(stderr, "Using ONT long-read mapper\n");
+        ONTMapper mp(IX, ST);
+        // ONT mapper doesn't need all Illumina parameters
+        // Will implement ONT-specific parameters in Steps 4-9
+
+        if (!paired) {
+            mp.map_single_end(reads1, out_path, max_reads, rescue_unmapped);
+        } else {
+            mp.map_paired(reads1, reads2, out_path, max_pairs, rescue_unmapped);
+        }
     } else {
-        mp.map_paired(reads1, reads2, out_path, max_pairs, rescue_unmapped);
+        fprintf(stderr, "Using Illumina paired-end mapper (default)\n");
+        IlluminaMapper mp(IX, ST);
+        mp.min_ins = min_ins;
+        mp.max_ins = max_ins;
+        mp.stride = stride;
+        mp.min_votes = min_votes;
+        mp.lead_margin = lead_margin;
+        mp.min_seeds_before_early = early_seeds;
+        mp.verify_topk = verify_topk;
+        mp.verify_topk_lo = verify_topk_lo;
+        mp.df1_bytes = df1_bytes;
+        mp.df2_bytes = df2_bytes;
+        mp.post_budget = post_budget;
+        mp.prefetch = prefetch;
+        mp.dedup_seeds = dedup_seeds;
+        mp.sieve_seeds = sieve_seeds;
+        mp.skip_rev_on_clear = skip_rev_on_clear;
+        mp.bin_shift = bin_shift;
+        mp.output_nm_md = output_nm_md;
+
+        if (!paired) {
+            mp.map_single_end(reads1, out_path, max_reads, rescue_unmapped);
+        } else {
+            mp.map_paired(reads1, reads2, out_path, max_pairs, rescue_unmapped);
+        }
     }
 
     return 0;
